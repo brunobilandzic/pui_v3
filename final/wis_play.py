@@ -1,4 +1,4 @@
-from wis_wolf import State
+from final.wis_wolf import State
 
 def generate(state: State, dict):
     
