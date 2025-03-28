@@ -22,7 +22,7 @@ PROF_POS = {
     "B": 3,
     "I": 4
 }
-
+counter = 0
 def build_entities(state_key):
     els = state_key.split(" ")
 
@@ -140,6 +140,10 @@ class State:
             return True
         if self.entities[V] == L and self.entities[O] == L and self.b[0]==R:
             return True
+        if self.entities[O] == L and self.entities[K] == L and self.b[0]==R:
+            return True
+        if self.entities[O] == R and self.entities[K] == R and self.b[0]==L:
+            return True
         
         return False
     
@@ -183,10 +187,12 @@ def bfs(start):
     while len(queue) > 0:
         i += 1
         current = queue.pop(0)
+        if current.is_terminal():
+            continue
         if current.is_goal():
-            print(f"bfs visited {len(visited)} states, iterations {i}\n")
+            
             path = get_path(current)
-            return path
+            return path, i
         visited.add(current)
         for next_state in current.next_states():
             if next_state not in visited:
@@ -200,10 +206,14 @@ def bfs(start):
     
     return None
 
-def recursive_bfs(current, visited, depth=0):
+def recursive_bfs(current: State, visited, depth=0):
+    global counter
+    counter += 1
+    if current.is_terminal():
+        return
     if current.is_goal():
-        print(f"recursive bfs, visited {len(visited)} states\n")
-        return current
+        path = get_path(current)
+        return path, counter
     visited.add(current)
     for next_state in current.next_states():
         if next_state not in visited:
@@ -221,9 +231,8 @@ def dfs(start):
         i += 1
         current = stack.pop()
         if current.is_goal():
-            print(f"dfs visited {len(visited)} states, iterations {i}\n")
             path = get_path(current)
-            return path
+            return path, i
         visited.add(current)
         for next_state in current.next_states():
             if next_state not in visited:
@@ -232,9 +241,14 @@ def dfs(start):
     return None
 
 def recursive_dfs(current, visited, depth=0):
+    global counter
+    counter += 1
+    if current.is_terminal():
+        return
     if current.is_goal():
-        print(f"recursive dfs, visited {len(visited)} states\n")
-        return current
+        path = get_path(current)
+
+        return path, counter
     visited.add(current)
     for next_state in current.next_states():
         if next_state not in visited:
@@ -261,27 +275,30 @@ def bfs_path(start):
         visited.add(current)
         for next_state in current.next_states():
             if next_state not in visited:
-                queue.append(next_state)
-        
-
+                queue.append(next_state)  
 
 def generate_dict(current, dictionary={}):
+    global counter
+    counter += 1
     if current.as_string() in dictionary:
-        return 
+        return
 
     dictionary[current.as_string()] = current
 
+    if current.is_terminal():
+        return 
+
     if current.is_goal():
-        print(f"generate w/ dict, there are {len(dictionary)} states\n")
         path = get_path(current)
-        # for state in path:
-        #     print(state)
-        return current
+        print(len(path), counter)
+        return path, counter
 
     for next_state in current.next_states():
-        generate_dict(next_state, dictionary)
-        
-    
+        if next_state.as_string() not in dictionary:
+            result = generate_dict(next_state, dictionary)
+            if result is not None:
+                return result
+           
 def get_path(current):
     path = []
     while current is not None:
@@ -296,10 +313,11 @@ def best_first_search(start):
     while len(queue) > 0:
         i += 1
         current = queue.pop(0)
+        if current.is_terminal():
+            continue
         if current.is_goal():
-            print(f"heuristic visited {len(visited)} states, iterations {i}\n")
             path = get_path(current)
-            return path
+            return path, i
         visited.add(current)
         next_states = current.next_states()
         next_states.sort(key=lambda x: x.right_side())
@@ -308,36 +326,76 @@ def best_first_search(start):
                 queue.append(next_state)
 
 def main():
-    start = State()
-    recursive_bfs(start, set())
-    bfs_path = bfs(start)
-    
-    print("bfs path took visiting", len(bfs_path), "states")
+    stats = {}
     print()
+    global counter
+    start = State()
+
+    bfs_path, i  = bfs(start)
+    print("bfs path has", len(bfs_path), "states, and the algorithm copleted", i, "iterations")
+    print("Bfs path:")
     for state in bfs_path:
         print(state.prof_key())
     print()
-    
 
-    dfs_path = dfs(start)
-    
-    print("dfs path took visiting", len(dfs_path), "states")
+    stats["bfs"] = (len(bfs_path), i)
+
+    rec_bfs_path, i  = recursive_bfs(start, set())
+    counter = 0
     print()
+    print("recursive bfs path has", len(rec_bfs_path), "states, and the algorithm copleted", i, "iterations")
+    print("Recursive Bfs path:")
+    for state in rec_bfs_path:
+        print(state.prof_key())
+    print()
+
+    stats["rec_bfs"] = (len(rec_bfs_path), i)
+
+    dfs_path,i = dfs(start)
+    print()
+    print("dfs path path took visiting", len(dfs_path), "states, and the algorithm copleted", i, "iterations")
+    print("Dfs path:")
     for state in dfs_path:
         print(state.prof_key())
     print()
 
-    recursive_dfs(start, set())
+    stats["dfs"] = (len(dfs_path), i)
 
-    generate_dict(start)
+    path, i = recursive_dfs(start, set())
+    print()
+    print("recursive dfs path path took visiting", len(path), "states, and the algorithm copleted", i, "iterations")
+    print("Recursive Dfs path:")
+    for state in path:
+        print(state.prof_key())
+    print()
 
-    path = best_first_search(start)
-    print("best first search pathtook visiting", len(path), "states")
+    stats["rec_dfs"] = (len(path), i)
+
+    path, i = generate_dict(start)
+    print(len(path), counter)
+    counter = 0
+    print()
+    print("generate dict path path took visiting", len(path), "states, and the algorithm copleted", i, "iterations")
+    print("Generate dict path:")
+    for state in path:
+        print(state.prof_key())
+    print()
+    
+    stats["gen_dict"] = (len(path), i)
+
+    path, i = best_first_search(start)
+    print()
+    print("best first search path path took visiting", len(path), "states, and the algorithm copleted", i, "iterations")
+    print("Best first search path:")
     print()
     for state in path:
         print(state.prof_key())
     print()
 
-
+    stats["best_first"] = (len(path), i)
+    print("\nSTATS:")
+    for k, v in stats.items():
+        print(f"{k} path took {v[0]} states and {v[1]} iterations")
+    print()
 if __name__ == "__main__":
     main()
